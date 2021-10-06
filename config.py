@@ -24,7 +24,7 @@ class Config:
     def __init__(self):
         self.emojis = Emojis()
         self.logs = Logs()
-        self.prefixes = ['v!', 'V!']
+        self.prefixes = ['s!', 'S!']
         self.status = 'my dms'
         self.owners = [739440618107043901]
         self.client_secret = os.environ.get('CLIENT_SECRET')
