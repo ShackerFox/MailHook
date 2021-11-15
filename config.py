@@ -9,7 +9,7 @@ class Emojis:
         self.staff = '<:staff:884878278295425024>'
         self.yes = '<:yes:893130476871643166>'
         self.no = '<:no:893130503782297630>'
-        self.loading = '<a:Loading:893130260089032725>'
+        self.loading = '<a:Loading:892010799994929192>'
 
 
 class Logs:
@@ -28,5 +28,5 @@ class Config:
         self.status = 'my dms'
         self.owners = [739440618107043901]
         self.client_secret = os.environ.get('CLIENT_SECRET')
-        self.bot_lists = [733135548566470726, 333949691962195969]
-        self.transcript_db_channel = 897480469870948432
+        self.bot_lists = [733135548566470726, 333949691962195969, 739440618107043901]
+        self.transcript_db_channel = 909923634737455134
