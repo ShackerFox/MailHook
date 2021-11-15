@@ -35,12 +35,26 @@ class ErrorHandling(commands.Cog):
             await ctx.reply(f"You are on cooldown for **{format_timespan(round(error.retry_after, 2))}**", delete_after=5)
         elif isinstance(error, commands.CommandNotFound):
             return
+        elif isinstance(error, commands.MissingPermissions):
+            perms = error.missing_permissions
+            await ctx.reply(embed=e(
+                f"{self.bot.config.emojis.no} Nah bro!",
+                "You need **{}** perms to run this command.".format(' '.join(error.missing_permissions[0].split('_')).title())
+            ))
+        elif isinstance(error, commands.BotMissingPermissions):
+            perms = error.missing_permissions
+            if "embed_links" in perms:
+                return await ctx.reply("Please give me embed link perms.")
+            await ctx.reply(embed=e(
+                f"{self.bot.config.emojis.no} I'm missing permissions!",
+                "I need **{}** perms to run this command.".format(' '.join(error.missing_permissions[0].split('_')).title())
+            ))
         elif isinstance(error, commands.CheckFailure):
             return
         elif isinstance(error, NotSetup):
             await ctx.reply(embed=e(
                 f"{self.bot.config.emojis.no} Not Setup!",
-                "Looks like the server is not setup for modmail.\nPlease use `/setup` to set it up."
+                f"Looks like the server is not setup for modmail.\nPlease visit [**this link**](https://mail-hook.xyz/setup/{ctx.guild.id}) to set it up."
             ))
         elif isinstance(error, NotStaff):
             await ctx.reply(embed=e(
@@ -94,8 +108,16 @@ class ErrorHandling(commands.Cog):
             ))
         else:
             error_text = "".join(traceback.format_exception(etype=type(error), value=error, tb=error.__traceback__))[:4000]
+            print(error_text)
             try:
-                await self.bot.get_channel(self.bot.config.logs.cmd_errs).send(embed=e("Unknown Error", error_text))
+                await ctx.channel.send(embed=e(
+                    f"{self.bot.config.emojis.no} Unknown Error!",
+                    f"An unknown error has occurred.\n```{error}```"
+                ))
+            except Exception:
+                await ctx.channel.send(f"An error occured: \n\n```{error}```")
+            try:
+                await self.bot.get_channel(self.bot.config.logs.cmd_errs).send(embed=e("Unknown Error", f"```py\n{error_text}\n```"))
             except Exception:
                 traceback.print_exception(etype=type(error), value=error, tb=error.__traceback__)
 

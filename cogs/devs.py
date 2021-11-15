@@ -41,9 +41,11 @@ class Devs(commands.Cog):
         channel = self.bot.get_channel(self.bot.config.logs.cmds)
         await channel.send(embed=discord.Embed(
             title="Command used:",
-            description=f"Command: `{ctx.command.name}`\nSlash?: {'True' if isinstance(ctx, InteractionContext) else 'False'}",
+            description=f"Command: `{ctx.message.content if isinstance(ctx, commands.Context) else ctx.command.name}`\nSlash?: {'True' if isinstance(ctx, InteractionContext) else 'False'}",
             color=discord.Color.blurple()
-        ).set_author(name=f"{ctx.author}", icon_url=ctx.author.display_avatar.url))
+        ).set_author(name=f"{ctx.author} | {ctx.author.id}", icon_url=ctx.author.display_avatar.url
+        ).add_field(name="Channel:", value=f"{ctx.channel.mention}\n#{ctx.channel.name} ({ctx.channel.id})"
+        ).add_field(name="Guild:", value=f"{ctx.guild.name}\n{ctx.guild.id}"))
 
     @commands.Cog.listener('on_app_command')
     async def slash_cmd_logs(self, ctx):
@@ -51,22 +53,13 @@ class Devs(commands.Cog):
 
     @commands.Cog.listener('on_guild_join')
     async def on_guild_join(self, guild: discord.Guild):
-        send_embed = discord.Embed(
-            title="👋 Hey there!",
-            description="""
-Thanks a lot for inviting me!
-You can set me up to collect DMs from members and send them directly to your staff them.
-If you are a server admin then please run the `/setup` slash command to get started.
+        text_to_send = f"""
+Hey there! Thanks a lot for inviting me!
+If you are a server admin then please visit https://mail-hook.xyz/setup/{guild.id} to setup this server.
 
-Here are some useful links:
-
-- [Support server](https://discord.gg/TeSHENet9M_)
-- [Github](https://github.com/DeveloperJosh/MailHook/)
-
-""",
-            color=discord.Color.blurple()
-        ).set_author(name=self.bot.user.name, icon_url=self.bot.user.display_avatar.url
-        ).set_thumbnail(url=self.bot.user.display_avatar.url)
+If you face any issues, feel free to join our support server:
+- https://discord.gg/TeSHENet9M
+"""
 
         log_embed = discord.Embed(
             title="New guild joined",
@@ -84,20 +77,20 @@ Here are some useful links:
         for channel in guild.channels:
             if "general" in channel.name:
                 try:
-                    return await channel.send(embed=send_embed)
+                    return await channel.send(text_to_send)
                 except Exception:
                     pass
 
         for channel in guild.channels:
             if "bot" in channel.name or "cmd" in channel.name or "command" in channel.name:
                 try:
-                    return await channel.send(embed=send_embed)
+                    return await channel.send(text_to_send)
                 except Exception:
                     pass
 
         for channel in guild.channels:
             try:
-                return await channel.send(embed=send_embed)
+                return await channel.send(text_to_send)
             except Exception:
                 pass
 

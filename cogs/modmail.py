@@ -7,7 +7,7 @@ from handler import SlashCommandChoice as Choice
 from cogs.error_handler import EphemeralContext
 from utils.exceptions import GuildOnlyPls, NotAdmin, NotSetup, NoBots, NotStaff, ModRoleNotFound, TicketCategoryNotFound, DMsDisabled
 from utils.bot import ModMail
-from utils.ui import ServersDropdown, ServersDropdownView, Confirm
+from utils.ui import PaginatorView, ServersDropdown, ServersDropdownView, Confirm
 from utils.message import wait_for_msg
 from utils.tickets_core import start_modmail_thread, get_webhook, prepare_transcript, send_modmail_message
 from utils.converters import SettingConverter
@@ -21,7 +21,7 @@ class Mailhook(commands.Cog, name="Mail Hook"):
         self.bot = bot
 
     @commands.command(help="Setup modmail for your server.")
-    @commands.bot_has_permissions(administrator=True)
+    @commands.bot_has_permissions(embed_links=True)
     @slash_command(help="Setup modmail for your server.")
     async def setup(self, ctx: Union[InteractionContext, commands.Context]):
         if not ctx.guild:
@@ -32,11 +32,13 @@ class Mailhook(commands.Cog, name="Mail Hook"):
             await self.bot.mongo.get_guild_data(ctx.guild.id)
             return await ctx.reply(embed=discord.Embed(
                 title=f"{self.bot.config.emojis.yes} Already Setup!",
-                description="Hey, looks like this server is already setup.\nPlease use `/show-config` to view the configuration.",
+                description=f"Hey, looks like this server is already setup.\nPlease visit [**this link**](https://mail-hook.xyz/servers/{ctx.guild.id}) to manage it.",
                 color=discord.Color.blurple()
             ))
         except NotSetup:
             pass
+        if ctx.guild.id in self.bot.config.bot_lists:
+            return await ctx.reply(f"Please visit https://mail-hook.xyz/setup/{ctx.guild.id} to set it up.")
         final = {}
         main_msg = await ctx.reply(embed=discord.Embed(
             title=f"{self.bot.config.emojis.loading} Modmail setup!",
@@ -71,8 +73,15 @@ class Mailhook(commands.Cog, name="Mail Hook"):
             final.update({"category": category.id})
         except commands.ChannelNotFound:
             return await main_msg.edit(f"{self.bot.config.emojis.no} I wasn't able to find that category.\n> Please re-run the command and try again.")
-        await category.edit(overwrites=overwrites)
-        transcripts = await category.create_text_channel('transcripts', topic="Modmail transcripts will be saved here.", overwrites=overwrites)
+        try:
+            await category.edit(overwrites=overwrites)
+            transcripts = await category.create_text_channel('transcripts', topic="Modmail transcripts will be saved here.", overwrites=overwrites)
+        except discord.Forbidden:
+            return await main_msg.edit(embed=discord.Embed(
+                title=f"{self.bot.config.emojis.no} I don't have permission to create channels.",
+                description="I need the `Manage Channels` permission to create channels.\nPlease give me this permission and try again.",
+                color=discord.Color.red()
+            ))
         final.update({"transcripts": transcripts.id})
         await self.bot.mongo.set_guild_data(ctx.guild.id, **final)
         await main_msg.edit(embed=discord.Embed(
@@ -133,7 +142,9 @@ class Mailhook(commands.Cog, name="Mail Hook"):
         category = ctx.guild.get_channel(guild_data['category'])
         if category is None:
             raise TicketCategoryNotFound()
-        embed = discord.Embed(color=discord.Color.blurple(), title="Modmail Configuration!")
+        if staff_role not in ctx.author.roles:
+            raise NotStaff()
+        embed = discord.Embed(color=discord.Color.blurple(), title="Modmail Configuration!", description=f"You can also view and edit these settings from the [**Dashboard**](https://mail-hook.xyz/servers/{ctx.guild.id})")
         embed.add_field(name="Staff Role:", value=staff_role.mention)
         embed.add_field(name="Transcript Channel:", value=transcript_channel.mention if transcript_channel is not None else "No transcript channel. [Not Recommended]")
         embed.add_field(name="Category:", value=category.name)
@@ -226,6 +237,38 @@ All your messages will be send to the staff team.
             )
         return await ctx.reply(embed=embed)
 
+    @commands.command(name="transcripts", help="View all the modmail transcripts.")
+    @slash_command(name="transcripts", help="View all the modmail transcripts.")
+    async def mailhook_transcripts(self, ctx: Union[commands.Context, InteractionContext]):
+        if not ctx.guild:
+            raise GuildOnlyPls()
+        guild_data = await self.bot.mongo.get_guild_data(ctx.guild.id)
+        if ctx.guild.get_role(guild_data['staff_role']) not in ctx.author.roles:
+            raise NotStaff()
+        transcripts = guild_data.get("ticket_transcripts", {})
+        embed = discord.Embed(
+            title="Guild transcripts",
+            color=discord.Color.blurple(),
+            description=f"This server has no transcripts.\nYou can also view the transcripts here: https://mail-hook.xyz/transcripts/{ctx.guild.id}"
+        )
+        paginator = commands.Paginator(prefix="", suffix="")
+        for num, transcript_id in enumerate(transcripts):
+            paginator.add_line(f"`{num}.` [{transcript_id}](https://mail-hook.xyz/viewticket/{ctx.guild.id}/{transcript_id})")
+        embeds = []
+        for page in paginator.pages:
+            embed.description = page
+            embeds.append(embed)
+        if len(embeds) == 0:
+            return await ctx.reply(embed=embed)
+        elif len(embeds) == 1:
+            return await ctx.reply(embed=embeds[0])
+        else:
+            view = PaginatorView(ctx, embeds)
+            return await ctx.reply(embeds[0], view=view)
+
+    def format_ticket_message(self, message: str) -> str:
+        return ""
+
     @commands.Cog.listener('on_message')
     async def modmail_dm(self, message: discord.Message):
         if message.author.bot:
@@ -272,10 +315,10 @@ All your messages will be send to the staff team.
             if message.author.id in dropdown_concurrency:
                 dropdown_concurrency.remove(message.author.id)
             channel = await start_modmail_thread(self.bot, final_guild.id, message.author.id)
-            role = final_guild.get_role(final_mutual_guilds[final_guild]['staff_role'])
+            ping_staff = final_mutual_guilds[final_guild].get('ping_staff', True)
             await channel.send(
-                f"{role.mention if role is not None else 'Hey moderators,'} {message.author.mention} has opened a modmail thread.",
-                allowed_mentions=discord.AllowedMentions.all()
+                f"<@&{final_mutual_guilds[final_guild]['staff_role']}> {message.author.mention} has opened a modmail thread.",
+                allowed_mentions=discord.AllowedMentions.all() if ping_staff else discord.AllowedMentions.none()
             )
             await channel.send(
                 f"""
@@ -339,7 +382,7 @@ If you want to ignore a message you can start it with {' or '.join(['`' + p + '`
 
     @commands.command(name='anon-reply', help="Reply anonymously to a ticket.")
     @slash_command(name="anon-reply", help="Reply anonymously to a ticket.")
-    async def areply(self, ctx: InteractionContext, message: str):
+    async def areply(self, ctx: InteractionContext, *, message: str):
         if not ctx.guild:
             raise GuildOnlyPls()
         guild_data = await self.bot.mongo.get_guild_data(ctx.guild.id)
@@ -360,6 +403,60 @@ If you want to ignore a message you can start it with {' or '.join(['`' + p + '`
                 await ctx.reply("Message sent!")
         except Exception as e:
             await ctx.reply(f"Unable to send message due to error: `{e}`")
+
+    @commands.Cog.listener('on_message')
+    async def prefix_reply(self, message: discord.Message):
+        if message.author.bot:
+            return
+        if message.content.lower() not in [f"<@{self.bot.user.id}>", f"<@!{self.bot.user.id}>"]:
+            return
+        prefixes = self.bot.config.prefixes.copy()
+        if not message.guild:
+            return await message.reply(f"My prefixes are: {', '.join(['`' + p + '`' for p in prefixes])}")
+        guild_prefixes = await self.bot.mongo.get_prefixes(message.guild.id)
+        if not guild_prefixes:
+            return await message.reply(f"My prefixes are: {', '.join(['`' + p + '`' for p in prefixes])}")
+        await message.reply(f"My prefixes are: {', '.join(['`' + p + '`' for p in guild_prefixes])}")
+
+    @commands.group(name="prefix", help="Manage the prefixes for the bot.")
+    async def prefix(self, ctx: commands.Context):
+        if ctx.invoked_subcommand is None:
+            prefixes = await self.bot.mongo.get_prefixes(ctx.guild.id)
+            if not prefixes:
+                prefixes = self.bot.config.prefixes.copy()
+            return await ctx.reply(f"Your current prefixes are: {', '.join(['`' + prefix + '`' for prefix in prefixes])}\nYou can use the following commands to manage them:\n\n- `{ctx.clean_prefix}prefix add <prefix>`\n- `{ctx.clean_prefix}prefix remove <prefix>`")
+
+    @prefix.command(name="add", help="Add a prefix to the bot.")
+    @commands.has_permissions(manage_guild=True)
+    async def prefix_add(self, ctx: commands.Context, *, prefix: str = None):
+        if prefix is None:
+            return await ctx.reply(f"{self.bot.config.emojis.no} Please specify a prefix to add.")
+        prefixes = await self.bot.mongo.get_prefixes(ctx.guild.id)
+        if not prefixes:
+            prefixes = self.bot.config.prefixes.copy()
+        if len(prefixes) >= 10:
+            return await ctx.reply(f"{self.bot.config.emojis.no} You can only have 10 prefixes.")
+        if prefix in prefixes:
+            return await ctx.reply(f"{self.bot.config.emojis.no} This prefix is already added.")
+        prefixes.append(prefix)
+        await self.bot.mongo.set_guild_data(ctx.guild.id, prefixes=prefixes)
+        await ctx.reply(f"{self.bot.config.emojis.yes} Added `{prefix}` to your prefixes.")
+
+    @prefix.command(name="remove", help="Remove a prefix from the bot.")
+    @commands.has_permissions(manage_guild=True)
+    async def prefix_remove(self, ctx: commands.Context, *, prefix: str = None):
+        if prefix is None:
+            return await ctx.reply(f"{self.bot.config.emojis.no} Please specify a prefix to remove.")
+        prefixes = await self.bot.mongo.get_prefixes(ctx.guild.id)
+        if not prefixes:
+            prefixes = self.bot.config.prefixes.copy()
+        if prefix not in prefixes:
+            return await ctx.reply(f"{self.bot.config.emojis.no} This prefix is not added.")
+        if len(prefixes) == 1:
+            return await ctx.reply(f"{self.bot.config.emojis.no} You cannot remove the last prefix.\nPlease add another one and then remove this one.")
+        prefixes.remove(prefix)
+        await self.bot.mongo.set_guild_data(ctx.guild.id, prefixes=prefixes)
+        await ctx.reply(f"{self.bot.config.emojis.yes} Removed `{prefix}` from your prefixes.")
 
 
 def setup(bot: ModMail):
