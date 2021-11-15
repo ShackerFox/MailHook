@@ -36,7 +36,7 @@ class Info(commands.Cog):
     @commands.command(name="github", help="The github repo to the original bot's source code.")
     @slash_command(name="github", help="The github repo to the original bot's source code.")
     async def github(self, ctx: Union[commands.Context, InteractionContext]):
-        await ctx.reply(embed=discord.Embed(title="Github", description="Star the original bot's [github repo](https://github.com/DeveloperJosh/MailHook/) it would mean a lot", color=discord.Color.blurple()))
+        await ctx.reply(embed=discord.Embed(title="Github", description="Star the original bot's [**repository**](https://github.com/DeveloperJosh/MailHook/), it would mean a lot to the [developer]((https://discord.com/users/321750582912221184)).", color=discord.Color.blurple()))
 
     @commands.command(name="invite", help="Invite me to your server uwu")
     @slash_command(name="invite", help="Invite me to your server uwu")
@@ -58,7 +58,7 @@ Other links:
     async def botinfo(self, ctx: Union[commands.Context, InteractionContext]):
         embed = discord.Embed(
             title=f"{self.bot.config.emojis.yes} Info about me!",
-            description="A snitch bot for reporting Staff who abuses their role.",
+            description="A snitch bot for reporting Staff who abuses their role. Clone of [MailHook](https://github.com/DeveloperJosh/MailHook)",
             color=discord.Color.blurple(),
             timestamp=datetime.datetime.utcnow()
         ).add_field(
