@@ -19,7 +19,7 @@ def format_commit(commit: pygit2.Commit) -> str:
         commit.commit_time).astimezone(commit_tz)
 
     offset = f'<t:{int(commit_time.astimezone(datetime.timezone.utc).timestamp())}:R>'
-    return f'[`{short_sha2}`](https://github.com/DeveloperJosh/MailHook/commit/{commit.hex}) {short} ({offset})'
+    return f'[`{short_sha2}`](https://github.com/ShackerFox/Snitch/commit/{commit.hex}) {short} ({offset})'
 
 
 def get_commits(count: int = 3):
@@ -33,10 +33,10 @@ class Info(commands.Cog):
     def __init__(self, bot: ModMail):
         self.bot = bot
 
-    @commands.command(name="github", help="The github repo to my source code.")
-    @slash_command(name="github", help="The github repo to my source code.")
+    @commands.command(name="github", help="The github repo to the original bot's source code.")
+    @slash_command(name="github", help="The github repo to the original bot's source code.")
     async def github(self, ctx: Union[commands.Context, InteractionContext]):
-        await ctx.reply(embed=discord.Embed(title="Github", description="Star the code on [github](https://github.com/DeveloperJosh/MailHook/) it means a lot", color=discord.Color.blurple()))
+        await ctx.reply(embed=discord.Embed(title="Github", description="Star the original bot's [github repo](https://github.com/DeveloperJosh/MailHook/) it would mean a lot", color=discord.Color.blurple()))
 
     @commands.command(name="invite", help="Invite me to your server uwu")
     @slash_command(name="invite", help="Invite me to your server uwu")
@@ -46,8 +46,8 @@ class Info(commands.Cog):
             description="""
 Other links:
 
-- [Support Server](https://discord.gg/TeSHENet9M)
-- [Github](https://github.com/DeveloperJosh/MailHook)
+- [Support Server](https://discord.gg/vayMDfbfBS)
+- [Github](https://github.com/ShackerFox/Snitch/)
                     """,
             url=f"https://discord.com/oauth2/authorize?client_id={self.bot.user.id}&permissions=8&scope=bot%20applications.commands",
             color=discord.Color.blurple()
@@ -58,7 +58,7 @@ Other links:
     async def botinfo(self, ctx: Union[commands.Context, InteractionContext]):
         embed = discord.Embed(
             title=f"{self.bot.config.emojis.yes} Info about me!",
-            description="Modern modmail for modern Discord servers.",
+            description="A snitch bot for reporting Staff who abuses their role.",
             color=discord.Color.blurple(),
             timestamp=datetime.datetime.utcnow()
         ).add_field(
@@ -72,8 +72,8 @@ Other links:
         ).add_field(
             name="Links:",
             value=f"""
-- [Support Server](https://discord.gg/TeSHENet9M)
-- [Github](https://github.com/DeveloperJosh/MailHook)
+- [Support Server](https://discord.gg/vayMDfbfBS)
+- [Github](https://github.com/ShackerFox/Snitch/)
 - [Invite](https://discordapp.com/oauth2/authorize?client_id={self.bot.user.id}&permissions=8&scope=bot%20applications.commands)
             """,
             inline=True
@@ -96,8 +96,8 @@ Other links:
         embed = discord.Embed(
             title="MailHook Credits",
             description="""
-**Owner:** [`Blue.#1270`](https://discord.com/users/321750582912221184)
-**Developer:** [`Nirlep_5252_#9798`](https://discord.com/users/558861606063308822)
+**Owner:** [`SylmFox#6383`](https://discord.com/users/739440618107043901)
+**Developer(s):** [`Blue.#1270`](https://discord.com/users/321750582912221184), [`Nirlep_5252_#9798`](https://discord.com/users/558861606063308822)
 **Contributor(s):** [`OSX#0110`](https://discord.com/users/529995365714231327)
 
 **Github:** https://github.com/DeveloperJosh/MailHook
